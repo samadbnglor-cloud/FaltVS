@@ -1,0 +1,137 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.17.xsd">
+
+    <changeSet id="001-create-candidate-table" author="system">
+        <createTable tableName="candidate">
+            <column name="id" type="bigint" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="name" type="varchar(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="email" type="varchar(255)">
+                <constraints nullable="false" unique="true"/>
+            </column>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="002-create-interviewer-table" author="system">
+        <createTable tableName="interviewer">
+            <column name="id" type="bigint" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="name" type="varchar(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="email" type="varchar(255)">
+                <constraints nullable="false" unique="true"/>
+            </column>
+            <column name="skills" type="varchar(500)"/>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="003-create-interview-table" author="system">
+        <createTable tableName="interview">
+            <column name="id" type="bigint" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="candidate_id" type="bigint">
+                <constraints nullable="false"/>
+            </column>
+            <column name="interviewer_id" type="bigint">
+                <constraints nullable="false"/>
+            </column>
+            <column name="scheduled_time" type="timestamp">
+                <constraints nullable="false"/>
+            </column>
+            <column name="status" type="varchar(20)">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        <addForeignKeyConstraint baseTableName="interview" baseColumnNames="candidate_id"
+                                 referencedTableName="candidate" referencedColumnNames="id"
+                                 constraintName="fk_interview_candidate"/>
+        <addForeignKeyConstraint baseTableName="interview" baseColumnNames="interviewer_id"
+                                 referencedTableName="interviewer" referencedColumnNames="id"
+                                 constraintName="fk_interview_interviewer"/>
+    </changeSet>
+
+    <changeSet id="004-create-feedback-table" author="system">
+        <createTable tableName="feedback">
+            <column name="id" type="bigint" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="interview_id" type="bigint">
+                <constraints nullable="false" unique="true"/>
+            </column>
+            <column name="rating" type="int"/>
+            <column name="comments" type="varchar(1000)"/>
+        </createTable>
+        <addForeignKeyConstraint baseTableName="feedback" baseColumnNames="interview_id"
+                                 referencedTableName="interview" referencedColumnNames="id"
+                                 constraintName="fk_feedback_interview"/>
+    </changeSet>
+    <changeSet id="005-insert-sample-data" author="system">
+        <insert tableName="candidate">
+            <column name="name">John Doe</column>
+            <column name="email">john.doe@example.com</column>
+        </insert>
+        <insert tableName="candidate">
+            <column name="name">Jane Smith</column>
+            <column name="email">jane.smith@example.com</column>
+        </insert>
+        <insert tableName="candidate">
+            <column name="name">Bob Johnson</column>
+            <column name="email">bob.johnson@example.com</column>
+        </insert>
+        <insert tableName="interviewer">
+            <column name="name">Alice Brown</column>
+            <column name="email">alice.brown@example.com</column>
+            <column name="skills">Java, Spring</column>
+        </insert>
+        <insert tableName="interviewer">
+            <column name="name">Charlie Wilson</column>
+            <column name="email">charlie.wilson@example.com</column>
+            <column name="skills">Python, Django</column>
+        </insert>
+        <insert tableName="interviewer">
+            <column name="name">Diana Davis</column>
+            <column name="email">diana.davis@example.com</column>
+            <column name="skills">JavaScript, React</column>
+        </insert>
+        <insert tableName="interview">
+            <column name="candidate_id">1</column>
+            <column name="interviewer_id">1</column>
+            <column name="scheduled_time">2026-03-20 10:00:00</column>
+            <column name="status">SCHEDULED</column>
+        </insert>
+        <insert tableName="interview">
+            <column name="candidate_id">2</column>
+            <column name="interviewer_id">2</column>
+            <column name="scheduled_time">2026-03-21 14:00:00</column>
+            <column name="status">COMPLETED</column>
+        </insert>
+        <insert tableName="interview">
+            <column name="candidate_id">3</column>
+            <column name="interviewer_id">3</column>
+            <column name="scheduled_time">2026-03-22 16:00:00</column>
+            <column name="status">CANCELLED</column>
+        </insert>
+        <insert tableName="interview">
+            <column name="candidate_id">1</column>
+            <column name="interviewer_id">3</column>
+            <column name="scheduled_time">2026-03-23 11:00:00</column>
+            <column name="status">SCHEDULED</column>
+        </insert>
+        <insert tableName="feedback">
+            <column name="interview_id">2</column>
+            <column name="rating">4</column>
+            <column name="comments">Good technical skills, needs improvement in communication.</column>
+        </insert>
+    </changeSet>
+
+</databaseChangeLog>
