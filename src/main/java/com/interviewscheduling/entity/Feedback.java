@@ -1,6 +1,14 @@
 package com.interviewscheduling.entity;
 
-import jakarta.persistence.*;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.OneToOne;
 
 @Entity
 public class Feedback {
@@ -15,15 +23,19 @@ public class Feedback {
 
     private Integer rating; // 1-5
 
+    @Enumerated(EnumType.STRING)
+    private FeedbackStatus status;
+
     private String comments;
 
     // Constructors, getters, setters
 
     public Feedback() {}
 
-    public Feedback(Interview interview, Integer rating, String comments) {
+    public Feedback(Interview interview, Integer rating, FeedbackStatus status, String comments) {
         this.interview = interview;
         this.rating = rating;
+        this.status = status;
         this.comments = comments;
     }
 
@@ -49,6 +61,14 @@ public class Feedback {
 
     public void setRating(Integer rating) {
         this.rating = rating;
+    }
+
+    public FeedbackStatus getStatus() {
+        return status;
+    }
+
+    public void setStatus(FeedbackStatus status) {
+        this.status = status;
     }
 
     public String getComments() {

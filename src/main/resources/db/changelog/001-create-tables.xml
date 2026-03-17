@@ -69,6 +69,7 @@
                 <constraints nullable="false" unique="true"/>
             </column>
             <column name="rating" type="int"/>
+            <column name="status" type="varchar(20)"/>
             <column name="comments" type="varchar(1000)"/>
         </createTable>
         <addForeignKeyConstraint baseTableName="feedback" baseColumnNames="interview_id"
@@ -130,6 +131,7 @@
         <insert tableName="feedback">
             <column name="interview_id">2</column>
             <column name="rating">4</column>
+            <column name="status">HIRED</column>
             <column name="comments">Good technical skills, needs improvement in communication.</column>
         </insert>
     </changeSet>

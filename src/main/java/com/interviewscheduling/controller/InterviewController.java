@@ -7,16 +7,17 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.interviewscheduling.dto.FeedbackResponse;
 import com.interviewscheduling.dto.InterviewResponse;
 import com.interviewscheduling.dto.ScheduleInterviewRequest;
 import com.interviewscheduling.dto.SubmitFeedbackRequest;
-import com.interviewscheduling.entity.Feedback;
-import com.interviewscheduling.entity.Interview;
+import com.interviewscheduling.dto.UpdateInterviewRequest;
 import com.interviewscheduling.service.InterviewService;
 
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -34,15 +35,21 @@ public class InterviewController {
     }
 
     @PostMapping("/schedule")
-    public ResponseEntity<Interview> scheduleInterview(@Valid @RequestBody ScheduleInterviewRequest request) {
-        Interview interview = interviewService.scheduleInterview(request);
-        return ResponseEntity.status(HttpStatus.CREATED).body(interview);
+    public ResponseEntity<InterviewResponse> scheduleInterview(@Valid @RequestBody ScheduleInterviewRequest request) {
+        InterviewResponse interviewResponse = interviewService.scheduleInterviewResponse(request);
+        return ResponseEntity.status(HttpStatus.CREATED).body(interviewResponse);
     }
 
     @PostMapping("/feedback")
-    public ResponseEntity<Feedback> submitFeedback(@Valid @RequestBody SubmitFeedbackRequest request) {
-        Feedback feedback = interviewService.submitFeedback(request);
-        return ResponseEntity.status(HttpStatus.CREATED).body(feedback);
+    public ResponseEntity<FeedbackResponse> submitFeedback(@Valid @RequestBody SubmitFeedbackRequest request) {
+        FeedbackResponse feedbackResponse = interviewService.submitFeedbackResponse(request);
+        return ResponseEntity.status(HttpStatus.CREATED).body(feedbackResponse);
+    }
+
+    @PutMapping
+    public ResponseEntity<InterviewResponse> updateInterview(@Valid @RequestBody UpdateInterviewRequest request) {
+        InterviewResponse interviewResponse = interviewService.updateInterview(request);
+        return ResponseEntity.ok(interviewResponse);
     }
 
     @GetMapping

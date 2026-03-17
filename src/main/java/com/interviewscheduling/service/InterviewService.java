@@ -1,11 +1,21 @@
 package com.interviewscheduling.service;
 
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Optional;
+import com.interviewscheduling.dto.FeedbackResponse;
 import com.interviewscheduling.dto.InterviewResponse;
 import com.interviewscheduling.dto.ScheduleInterviewRequest;
 import com.interviewscheduling.dto.SubmitFeedbackRequest;
+import com.interviewscheduling.dto.UpdateInterviewRequest;
 import com.interviewscheduling.entity.*;
 import com.interviewscheduling.exception.ResourceNotFoundException;
-import com.interviewscheduling.repository.*;
+import com.interviewscheduling.repository.CandidateRepository;
+import com.interviewscheduling.repository.FeedbackRepository;
+import com.interviewscheduling.repository.InterviewRepository;
+import com.interviewscheduling.repository.InterviewerRepository;
+import com.interviewscheduling.repository.InterviewSpecifications;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -31,42 +41,140 @@ public class InterviewService {
     }
 
     public Interview scheduleInterview(ScheduleInterviewRequest request) {
+        // Validate scheduled time is not in the past
+        if (request.getScheduledTime().isBefore(LocalDateTime.now())) {
+            throw new IllegalArgumentException("Cannot schedule interview in the past");
+        }
+
         Candidate candidate = candidateRepository.findById(request.getCandidateId())
                 .orElseThrow(() -> new ResourceNotFoundException("Candidate not found"));
         Interviewer interviewer = interviewerRepository.findById(request.getInterviewerId())
                 .orElseThrow(() -> new ResourceNotFoundException("Interviewer not found"));
 
+        // Check for interviewer conflicts (assuming 1-hour interviews)
+        LocalDateTime interviewEnd = request.getScheduledTime().plusHours(1);
+        List<Interview> conflictingInterviews = interviewRepository.findConflictingInterviews(
+                request.getInterviewerId(),
+                request.getScheduledTime(),
+                interviewEnd,
+                InterviewStatus.CANCELLED
+        );
+
+        if (!conflictingInterviews.isEmpty()) {
+            throw new IllegalArgumentException("Interviewer has a conflicting interview at this time");
+        }
+
         Interview interview = new Interview(candidate, interviewer, request.getScheduledTime(), InterviewStatus.SCHEDULED);
         return interviewRepository.save(interview);
+    }
+
+    public InterviewResponse scheduleInterviewResponse(ScheduleInterviewRequest request) {
+        Interview interview = scheduleInterview(request);
+        return mapToResponse(interview);
     }
 
     public Feedback submitFeedback(SubmitFeedbackRequest request) {
         Interview interview = interviewRepository.findById(request.getInterviewId())
                 .orElseThrow(() -> new ResourceNotFoundException("Interview not found"));
 
-        if (interview.getStatus() != InterviewStatus.COMPLETED) {
-            throw new IllegalArgumentException("Feedback can only be submitted for completed interviews");
+        if (interview.getStatus() != InterviewStatus.SCHEDULED) {
+            throw new IllegalArgumentException("Feedback can only be submitted for scheduled interviews");
         }
 
-        Feedback feedback = new Feedback(interview, request.getRating(), request.getComments());
-        interview.setFeedback(feedback);
+        Feedback feedback;
+        if (interview.getFeedback() != null) {
+            // Update existing feedback
+            feedback = interview.getFeedback();
+            feedback.setRating(request.getRating());
+            feedback.setStatus(request.getStatus());
+            feedback.setComments(request.getComments());
+        } else {
+            // Create new feedback
+            feedback = new Feedback(interview, request.getRating(), request.getStatus(), request.getComments());
+            interview.setFeedback(feedback);
+        }
+        interview.setStatus(InterviewStatus.COMPLETED); // Set to completed when feedback is given
         interviewRepository.save(interview);
-        return feedbackRepository.save(feedback);
+      //  return feedbackRepository.save(feedback);
+      return feedback;
+    }
+
+    public FeedbackResponse submitFeedbackResponse(SubmitFeedbackRequest request) {
+        Feedback saved = submitFeedback(request);
+        return new FeedbackResponse(saved.getStatus(), saved.getComments());
     }
 
     public Page<InterviewResponse> getInterviews(String candidateName, String interviewerName, Pageable pageable) {
-        Page<Interview> interviews = interviewRepository.findByFilters(candidateName, interviewerName, pageable);
+        Specification<Interview> spec = Specification.where(null);
+        if (candidateName != null && !candidateName.isEmpty()) {
+            spec = spec.and(InterviewSpecifications.hasCandidateName(candidateName));
+        }
+        if (interviewerName != null && !interviewerName.isEmpty()) {
+            spec = spec.and(InterviewSpecifications.hasInterviewerName(interviewerName));
+        }
+        Page<Interview> interviews = interviewRepository.findAll(spec, pageable);
         return interviews.map(this::mapToResponse);
     }
 
     private InterviewResponse mapToResponse(Interview interview) {
+        FeedbackResponse feedbackResponse = null;
+        if (interview.getStatus() == InterviewStatus.COMPLETED && interview.getFeedback() != null) {
+            Feedback feedback = interview.getFeedback();
+            feedbackResponse = new FeedbackResponse(
+                    feedback.getStatus(),
+                    feedback.getComments()
+            );
+        }
         return new InterviewResponse(
                 interview.getId(),
                 interview.getCandidate().getName(),
                 interview.getInterviewer().getName(),
                 interview.getScheduledTime(),
-                interview.getStatus()
+                interview.getStatus(),
+                feedbackResponse
         );
+    }
+
+    public InterviewResponse updateInterview(UpdateInterviewRequest request) {
+        Interview interview = interviewRepository.findById(request.getId())
+                .orElseThrow(() -> new ResourceNotFoundException("Interview not found"));
+
+        if (interview.getStatus() == InterviewStatus.COMPLETED) {
+            throw new IllegalArgumentException("Cannot update completed interviews");
+        }
+
+        // Update status
+        interview.setStatus(request.getStatus());
+
+        // If rescheduling, validate and update time
+        if (request.getScheduledTime() != null) {
+            if (request.getScheduledTime().isBefore(LocalDateTime.now())) {
+                throw new IllegalArgumentException("Cannot schedule interview in the past");
+            }
+            interview.setScheduledTime(request.getScheduledTime());
+
+            // Check for conflicts if rescheduling
+            if (request.getStatus() != InterviewStatus.CANCELLED) {
+                LocalDateTime interviewEnd = request.getScheduledTime().plusHours(1);
+                List<Interview> conflictingInterviews = interviewRepository.findConflictingInterviews(
+                        interview.getInterviewer().getId(),
+                        request.getScheduledTime(),
+                        interviewEnd,
+                        InterviewStatus.CANCELLED
+                );
+                // Exclude the current interview from conflicts
+                conflictingInterviews = conflictingInterviews.stream()
+                        .filter(i -> !i.getId().equals(request.getId()))
+                        .toList();
+
+                if (!conflictingInterviews.isEmpty()) {
+                    throw new IllegalArgumentException("Interviewer has a conflicting interview at this time");
+                }
+            }
+        }
+
+        Interview saved = interviewRepository.save(interview);
+        return mapToResponse(saved);
     }
 
     // Additional methods as needed

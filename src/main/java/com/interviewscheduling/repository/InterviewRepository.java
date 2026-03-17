@@ -1,20 +1,27 @@
 package com.interviewscheduling.repository;
 
-import com.interviewscheduling.entity.Interview;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
+import java.time.LocalDateTime;
+import java.util.List;
+
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
-@Repository
-public interface InterviewRepository extends JpaRepository<Interview, Long> {
+import com.interviewscheduling.entity.Interview;
+import com.interviewscheduling.entity.InterviewStatus;
 
-    @Query("SELECT i FROM Interview i JOIN i.candidate c JOIN i.interviewer iv WHERE " +
-           "(:candidateName IS NULL OR LOWER(c.name) LIKE LOWER(CONCAT('%', :candidateName, '%'))) AND " +
-           "(:interviewerName IS NULL OR LOWER(iv.name) LIKE LOWER(CONCAT('%', :interviewerName, '%')))")
-    Page<Interview> findByFilters(@Param("candidateName") String candidateName,
-                                  @Param("interviewerName") String interviewerName,
-                                  Pageable pageable);
+@Repository
+public interface InterviewRepository extends JpaRepository<Interview, Long>, JpaSpecificationExecutor<Interview> {
+
+    @Query("SELECT i FROM Interview i WHERE i.interviewer.id = :interviewerId " +
+           "AND i.status != :cancelledStatus " +
+           "AND ((i.scheduledTime <= :startTime AND i.scheduledTime + 1 HOUR > :startTime) " +
+           "OR (i.scheduledTime < :endTime AND i.scheduledTime + 1 HOUR >= :endTime) " +
+           "OR (i.scheduledTime >= :startTime AND i.scheduledTime < :endTime))")
+    List<Interview> findConflictingInterviews(@Param("interviewerId") Long interviewerId,
+                                             @Param("startTime") LocalDateTime startTime,
+                                             @Param("endTime") LocalDateTime endTime,
+                                             @Param("cancelledStatus") InterviewStatus cancelledStatus);
 }

@@ -1,7 +1,8 @@
 package com.interviewscheduling.dto;
 
-import com.interviewscheduling.entity.InterviewStatus;
 import java.time.LocalDateTime;
+
+import com.interviewscheduling.entity.InterviewStatus;
 
 public class InterviewResponse {
 
@@ -10,6 +11,7 @@ public class InterviewResponse {
     private String interviewerName;
     private LocalDateTime scheduledTime;
     private InterviewStatus status;
+    private FeedbackResponse feedback;
 
     // Constructors, getters, setters
 
@@ -21,6 +23,15 @@ public class InterviewResponse {
         this.interviewerName = interviewerName;
         this.scheduledTime = scheduledTime;
         this.status = status;
+    }
+
+    public InterviewResponse(Long id, String candidateName, String interviewerName, LocalDateTime scheduledTime, InterviewStatus status, FeedbackResponse feedback) {
+        this.id = id;
+        this.candidateName = candidateName;
+        this.interviewerName = interviewerName;
+        this.scheduledTime = scheduledTime;
+        this.status = status;
+        this.feedback = feedback;
     }
 
     public Long getId() {
@@ -61,5 +72,13 @@ public class InterviewResponse {
 
     public void setStatus(InterviewStatus status) {
         this.status = status;
+    }
+
+    public FeedbackResponse getFeedback() {
+        return feedback;
+    }
+
+    public void setFeedback(FeedbackResponse feedback) {
+        this.feedback = feedback;
     }
 }

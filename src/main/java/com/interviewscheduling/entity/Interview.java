@@ -1,7 +1,18 @@
 package com.interviewscheduling.entity;
 
-import jakarta.persistence.*;
 import java.time.LocalDateTime;
+
+import jakarta.persistence.CascadeType;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToOne;
 
 @Entity
 public class Interview {
@@ -23,7 +34,7 @@ public class Interview {
     @Enumerated(EnumType.STRING)
     private InterviewStatus status;
 
-    @OneToOne(mappedBy = "interview", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @OneToOne(mappedBy = "interview", cascade = CascadeType.ALL, fetch = FetchType.EAGER)
     private Feedback feedback;
 
     // Constructors, getters, setters
