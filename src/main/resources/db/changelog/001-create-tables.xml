@@ -136,4 +136,13 @@
         </insert>
     </changeSet>
 
+    <changeSet id="006-add-name-indexes" author="system">
+        <createIndex tableName="candidate" indexName="idx_candidate_name">
+            <column name="name"/>
+        </createIndex>
+        <createIndex tableName="interviewer" indexName="idx_interviewer_name">
+            <column name="name"/>
+        </createIndex>
+    </changeSet>
+
 </databaseChangeLog>

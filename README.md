@@ -1,170 +1,202 @@
 # Interview Scheduling System
 
-A microservice-based system for managing interview schedules, built with Spring Boot 3.5, Java 21, JPA, Hibernate, Liquibase, and H2 database.
+A modular REST API built with **Java 21** and **Spring Boot 3.5** for managing interview scheduling, rescheduling, cancellation, and feedback submission.
 
-## Features
+## Tech Stack
 
-- Schedule interviews between candidates and interviewers
-- Submit feedback for completed interviews (automatically sets interview status to COMPLETED)
-- Update interview status (cancel/reschedule) with conflict checking
-- Search and list interviews with pagination and filtering by candidate name or interviewer name
-- Email notifications for interview scheduling, updates, and feedback submission
-
-## Technologies
-
-- Java 21
-- Spring Boot 3.5
-- Spring Data JPA
-- Hibernate
-- Liquibase
-- H2 Database
-- Maven
+| Layer         | Technology                          |
+|---------------|-------------------------------------|
+| Language      | Java 21                             |
+| Framework     | Spring Boot 3.5                     |
+| Database      | H2 (file-based, persistent)         |
+| ORM           | Spring Data JPA / Hibernate         |
+| Migrations    | Liquibase                           |
+| Validation    | Jakarta Bean Validation             |
+| Async         | Virtual Threads (Project Loom)      |
+| Build         | Maven                               |
 
 ## Project Structure
 
-- `entity/`: JPA entities (Candidate, Interviewer, Interview, Feedback)
-- `repository/`: JPA repositories
-- `service/`: Business logic services
-- `controller/`: REST controllers
-- `dto/`: Data transfer objects
-- `exception/`: Custom exceptions and global exception handler
-- `config/`: Configuration classes (if any)
+```
+com.flatirons.ims
+├── config/             # AsyncConfig (virtual threads)
+├── constants/          # AppConstants (API paths, error messages)
+├── controller/         # InterviewController, FeedbackController
+├── dto/                # Request/Response DTOs (records + classes)
+├── entity/             # JPA entities (Interview, Feedback, Candidate, Interviewer)
+├── enums/              # InterviewStatus, FeedbackStatus
+├── exception/          # GlobalExceptionHandler, ResourceNotFoundException
+├── mapper/             # InterviewMapper, FeedbackMapper (@Component beans)
+├── repository/         # JPA repositories, InterviewSpecifications
+├── service/            # InterviewService, FeedbackService, NotificationService
+└── validation/         # Custom @ValidEnum annotation + validator
+```
+
+## Getting Started
+
+### Prerequisites
+
+- Java 21+
+- Maven 3.9+
+
+### Run
+
+```bash
+mvn spring-boot:run
+```
+
+The application starts on `http://localhost:8080/ims`.
 
 ## API Endpoints
 
-### Schedule Interview
-- **POST** `/api/interviews/schedule`
-- Request Body: `ScheduleInterviewRequest`
+Base path: `/ims/api/interviews`
 
-**Sample Request**
+### Schedule Interview
+
+```
+POST /ims/api/interviews/schedule
+```
+
 ```json
 {
   "candidateId": 1,
   "interviewerId": 1,
-  "scheduledTime": "2026-03-20T10:00:00"
+  "scheduledTime": "2026-04-01T10:00:00"
 }
 ```
 
-**Sample Response (201)**
+**Response** `201 Created`:
 ```json
 {
-  "id": 5,
+  "id": 1,
   "candidateName": "John Doe",
-  "interviewerName": "Alice Brown",
-  "scheduledTime": "2026-03-20T10:00:00",
+  "interviewerName": "Jane Smith",
+  "scheduledTime": "2026-04-01T10:00:00",
   "status": "SCHEDULED",
   "feedback": null
 }
 ```
 
+### Update Interview (Reschedule / Cancel)
+
+```
+PATCH /ims/api/interviews/schedule
+```
+
+**Cancel:**
+```json
+{
+  "id": 1,
+  "status": "CANCELLED"
+}
+```
+
+**Reschedule:**
+```json
+{
+  "id": 1,
+  "status": "SCHEDULED",
+  "scheduledTime": "2026-04-02T14:00:00"
+}
+```
+
+> **Note:** Setting status to `COMPLETED` is not allowed via this endpoint. Interviews are completed only through feedback submission.
+
 ### Submit Feedback
-- **POST** `/api/interviews/feedback`
-- Request Body: `SubmitFeedbackRequest`
 
-> Feedback can only be submitted for interviews that are in `SCHEDULED` status. Submitting feedback automatically sets the interview status to `COMPLETED`. If feedback already exists, it will be updated.
+```
+POST /ims/api/interviews/feedback
+```
 
-**Sample Request**
 ```json
 {
-  "interviewId": 2,
+  "interviewId": 1,
   "rating": 4,
-  "status": "SUBMITTED",
-  "comments": "Great session"
+  "status": "HIRED",
+  "comments": "Strong technical skills"
 }
 ```
 
-**Sample Response (201)**
+**Response** `201 Created`:
 ```json
 {
-  "status": "SUBMITTED",
-  "comments": "Great session"
+  "status": "HIRED",
+  "comments": "Strong technical skills"
 }
 ```
 
-### Update Interview
-- **PUT** `/api/interviews`
-- Request Body: `UpdateInterviewRequest`
+Submitting feedback automatically transitions the interview from `SCHEDULED` to `COMPLETED`. If feedback already exists for the interview, it is updated.
 
-> Allows updating interview status and rescheduling. Cannot update completed interviews. If rescheduling, checks for interviewer conflicts.
+**FeedbackStatus values:** `HIRED`, `REJECTED`, `ON_HOLD`, `FURTHER_DISCUSSION`
 
-**Sample Request**
-```json
-{
-  "id": 5,
-  "status": "CANCELLED",
-  "scheduledTime": null
-}
+### List Interviews
+
+```
+GET /ims/api/interviews
 ```
 
-**Sample Response (200)**
-```json
-{
-  "id": 5,
-  "candidateName": "John Doe",
-  "interviewerName": "Alice Brown",
-  "scheduledTime": "2026-03-20T10:00:00",
-  "status": "CANCELLED",
-  "feedback": null
-}
-```
+**Query Parameters:**
 
-### Get Interviews
-- **GET** `/api/interviews`
-- Query parameters (optional):
-  - `candidateName` (partial match)
-  - `interviewerName` (partial match)
-  - `status` (InterviewStatus: SCHEDULED, CANCELLED, COMPLETED)
-  - `scheduledDate` (date in yyyy-MM-dd format)
+| Parameter         | Type   | Description                          |
+|-------------------|--------|--------------------------------------|
+| `candidateName`   | String | Filter by candidate name (partial)   |
+| `interviewerName` | String | Filter by interviewer name (partial) |
+| `page`            | int    | Page number (0-based, default: 0)    |
+| `size`            | int    | Page size (default: 20)              |
+| `sort`            | String | Sort field (e.g., `scheduledTime,desc`) |
 
-**Sample Request**
-`GET /api/interviews?status=SCHEDULED&scheduledDate=2026-03-20`
+**Response** `200 OK`: Returns a JSON array of interviews.
 
-**Sample Response**
 ```json
 [
   {
     "id": 1,
     "candidateName": "John Doe",
-    "interviewerName": "Alice Brown",
-    "scheduledTime": "2026-03-20T10:00:00",
+    "interviewerName": "Jane Smith",
+    "scheduledTime": "2026-04-01T10:00:00",
     "status": "SCHEDULED",
     "feedback": null
   }
 ]
 ```
-      "scheduledTime": "2026-03-20T10:00:00",
-      "status": "SCHEDULED",
-      "feedback": null
-    }
-  ],
-  "pageable": { ... },
-  "totalPages": 1,
-  "totalElements": 1,
-  "last": true,
-  "size": 10,
-  "number": 0,
-  "sort": { ... },
-  "numberOfElements": 1,
-  "first": true,
-  "empty": false
-}
-```
 
-## Running the Application
+## Business Rules
 
-1. Ensure Java 21 and Maven are installed.
-2. Run `mvn spring-boot:run` to start the application.
-3. The application will run on `http://localhost:8081`.
-4. H2 console is available at `http://localhost:8081/h2-console`.
+- Interviews cannot be scheduled in the past.
+- An interviewer cannot have overlapping interviews (1-hour slots).
+- Completed interviews cannot be updated, rescheduled, or cancelled.
+- Interview completion happens exclusively through feedback submission.
+- Feedback can only be submitted for interviews in `SCHEDULED` status.
 
-## Database
+## Enums
 
-- Uses H2 in-memory database.
-- Schema managed by Liquibase.
-- JPA ddl-auto set to validate.
+**InterviewStatus:** `SCHEDULED`, `COMPLETED`, `CANCELLED`
+
+**FeedbackStatus:** `HIRED`, `REJECTED`, `ON_HOLD`, `FURTHER_DISCUSSION`
+
+## Error Handling
+
+| HTTP Status | Scenario                                                      |
+|-------------|---------------------------------------------------------------|
+| 400         | Validation errors, invalid enum, past scheduling, conflict    |
+| 404         | Interview / Candidate / Interviewer not found                 |
+| 409         | Invalid state transition (e.g., cancel a completed interview) |
+| 500         | Unexpected server error                                       |
 
 ## Design Principles
 
-- Follows SOLID principles.
-- Modular architecture.
-- Enterprise-grade quality.
+- **Single Responsibility** — Separate controllers and services for interviews and feedback.
+- **Rich Domain Model** — Status transition rules live in the `Interview` entity (`complete()`, `cancel()`, `reschedule()`, `attachFeedback()`).
+- **Ports & Adapters** — Notification logic is behind a `NotificationPort` interface, decoupled from business services.
+- **Constructor Injection** — All dependencies injected via constructor; no field injection.
+- **DTO / Entity Separation** — Request/response DTOs are isolated from JPA entities. Mappers are Spring-managed `@Component` beans.
+- **Database Migrations** — Schema managed by Liquibase; JPA runs in `validate` mode.
+
+## Future Improvements
+
+- Redis for distributed caching
+- Kafka / Message Queue for scalable notifications
+- Externalized error messages via `error.properties`
+- API rate limiting and circuit breakers
+- Docker containerization
+- Health checks and monitoring
