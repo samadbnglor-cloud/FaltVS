@@ -1,7 +1,16 @@
 package com.interviewscheduling.entity;
 
-import jakarta.persistence.*;
 import java.util.List;
+
+import org.hibernate.annotations.Index;
+
+import jakarta.persistence.CascadeType;
+import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.OneToMany;
 
 @Entity
 public class Interviewer {
@@ -10,6 +19,7 @@ public class Interviewer {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Index(name = "idx_interviewer_name")
     private String name;
 
     private String email;

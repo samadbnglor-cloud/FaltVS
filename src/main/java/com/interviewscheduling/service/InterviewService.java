@@ -1,5 +1,6 @@
 package com.interviewscheduling.service;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -29,6 +30,7 @@ public class InterviewService {
     private final CandidateRepository candidateRepository;
     private final InterviewerRepository interviewerRepository;
     private final FeedbackRepository feedbackRepository;
+    private NotificationService notificationService;
 
     public InterviewService(InterviewRepository interviewRepository,
                             CandidateRepository candidateRepository,
@@ -40,7 +42,12 @@ public class InterviewService {
         this.feedbackRepository = feedbackRepository;
     }
 
-    public Interview scheduleInterview(ScheduleInterviewRequest request) {
+    @org.springframework.beans.factory.annotation.Autowired
+    public void setNotificationService(NotificationService notificationService) {
+        this.notificationService = notificationService;
+    }
+
+    private Interview scheduleInterview(ScheduleInterviewRequest request) {
         // Validate scheduled time is not in the past
         if (request.getScheduledTime().isBefore(LocalDateTime.now())) {
             throw new IllegalArgumentException("Cannot schedule interview in the past");
@@ -65,7 +72,16 @@ public class InterviewService {
         }
 
         Interview interview = new Interview(candidate, interviewer, request.getScheduledTime(), InterviewStatus.SCHEDULED);
-        return interviewRepository.save(interview);
+        Interview saved = interviewRepository.save(interview);
+
+        // Notify participants
+       /* notificationService.notifyInterviewScheduled(
+                candidate.getEmail(), interviewer.getEmail(),
+                candidate.getName(), interviewer.getName(),
+                request.getScheduledTime().toString()
+        );*/
+
+        return saved;
     }
 
     public InterviewResponse scheduleInterviewResponse(ScheduleInterviewRequest request) {
@@ -95,8 +111,17 @@ public class InterviewService {
         }
         interview.setStatus(InterviewStatus.COMPLETED); // Set to completed when feedback is given
         interviewRepository.save(interview);
-      //  return feedbackRepository.save(feedback);
-      return feedback;
+        //Feedback savedFeedback = feedbackRepository.save(feedback);
+
+        // Notify interviewer about feedback submission
+       /* notificationService.notifyFeedbackSubmitted(
+                interview.getInterviewer().getEmail(),
+                interview.getInterviewer().getName(),
+                interview.getCandidate().getName(),
+                "Rating: " + request.getRating() + ", Status: " + request.getStatus() + ", Comments: " + request.getComments()
+        );*/
+
+        return feedback;
     }
 
     public FeedbackResponse submitFeedbackResponse(SubmitFeedbackRequest request) {
@@ -112,6 +137,12 @@ public class InterviewService {
         if (interviewerName != null && !interviewerName.isEmpty()) {
             spec = spec.and(InterviewSpecifications.hasInterviewerName(interviewerName));
         }
+       /* if (status != null) {
+            spec = spec.and(InterviewSpecifications.hasStatus(status));
+        }
+        if (scheduledDate != null) {
+            spec = spec.and(InterviewSpecifications.hasScheduledDate(scheduledDate));
+        } */
         Page<Interview> interviews = interviewRepository.findAll(spec, pageable);
         return interviews.map(this::mapToResponse);
     }
@@ -174,6 +205,18 @@ public class InterviewService {
         }
 
         Interview saved = interviewRepository.save(interview);
+
+        // Notify participants about the update
+      /*  String details = "Status changed to " + request.getStatus();
+        if (request.getScheduledTime() != null) {
+            details += ", rescheduled to " + request.getScheduledTime();
+        }
+        notificationService.notifyInterviewUpdated(
+                saved.getCandidate().getEmail(), saved.getInterviewer().getEmail(),
+                saved.getCandidate().getName(), saved.getInterviewer().getName(),
+                details
+        );*/
+
         return mapToResponse(saved);
     }
 
